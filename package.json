@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "start": "parcel src/index.html -d docs"
+    "start": "parcel src/index.html -d docs --public-url ./",
+    "build": "parcel src/index.html -d docs --public-url ./"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.176",
