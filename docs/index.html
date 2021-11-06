@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <style>body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        height: 100vh;
+      }
+      * {
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+      }
+      #game {
+        margin: auto;
+        border: 1px solid #000;
+        background-color: #333;
+        border-radius: 4px;
+
+        width: 700px;
+        height: 400px;
+      }</style>
+  </head>
+  <body>
+    <div id="game"></div>
+
+    <script src="/game.4fb5d41c.js"></script>
+
+    <script>document.querySelector("body").addEventListener("wheel", function (event) {
+  event.stopPropagation();
+  event.preventDefault();
+});</script>
+  </body>
+</html>
