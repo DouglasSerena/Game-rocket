@@ -36,9 +36,10 @@ export class GameObjects {
     }
 
     for (let current = 0; current < this.objects.length; current++) {
-      this.objects.at(current).detectEdgeCollisions(this.engine.maps);
+      this.objects[current].detectEdgeCollisions(this.engine.maps);
+
       for (let next = current + 1; next < this.objects.length; next++) {
-        this.objects.at(current).collision(this.objects.at(next));
+        this.objects[current].detectCollisions(this.objects[next]);
       }
     }
   }

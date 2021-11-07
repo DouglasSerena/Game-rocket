@@ -19483,10 +19483,10 @@ function () {
     }
 
     for (var current = 0; current < this.objects.length; current++) {
-      this.objects.at(current).detectEdgeCollisions(this.engine.maps);
+      this.objects[current].detectEdgeCollisions(this.engine.maps);
 
       for (var next = current + 1; next < this.objects.length; next++) {
-        this.objects.at(current).collision(this.objects.at(next));
+        this.objects[current].detectCollisions(this.objects[next]);
       }
     }
   };
@@ -19555,6 +19555,7 @@ function () {
     this.image = null;
     this._width = 0;
     this._height = 0;
+    this.restitution = 0.1;
     this._width = width || engine.context.canvas.width;
     this._height = height || engine.context.canvas.height;
     this.generate();
@@ -19686,9 +19687,19 @@ function () {
     return this;
   };
 
-  Vector2.prototype.add = function (x, y) {
-    this.x += x;
-    this.y += y;
+  Vector2.prototype.add = function (vectorOrX, y) {
+    if (y === void 0) {
+      y = null;
+    }
+
+    if (typeof vectorOrX === "number") {
+      this.x += vectorOrX;
+      this.y += y !== null ? y : vectorOrX;
+    } else {
+      this.x += vectorOrX.x;
+      this.y += vectorOrX.y;
+    }
+
     return this;
   };
 
@@ -19702,9 +19713,19 @@ function () {
     return this;
   };
 
-  Vector2.prototype.subtract = function (x, y) {
-    this.x -= x;
-    this.y -= y;
+  Vector2.prototype.subtract = function (vectorOrX, y) {
+    if (y === void 0) {
+      y = null;
+    }
+
+    if (typeof vectorOrX === "number") {
+      this.x -= vectorOrX;
+      this.y -= y !== null ? y : vectorOrX;
+    } else {
+      this.x -= vectorOrX.x;
+      this.y -= vectorOrX.y;
+    }
+
     return this;
   };
 
@@ -19718,9 +19739,19 @@ function () {
     return this;
   };
 
-  Vector2.prototype.multiply = function (x, y) {
-    this.x *= x;
-    this.y *= y;
+  Vector2.prototype.multiply = function (vectorOrX, y) {
+    if (y === void 0) {
+      y = null;
+    }
+
+    if (typeof vectorOrX === "number") {
+      this.x *= vectorOrX;
+      this.y *= y !== null ? y : vectorOrX;
+    } else {
+      this.x *= vectorOrX.x;
+      this.y *= vectorOrX.y;
+    }
+
     return this;
   };
 
@@ -19734,9 +19765,15 @@ function () {
     return this;
   };
 
-  Vector2.prototype.divide = function (x, y) {
-    this.x /= x;
-    this.y /= y;
+  Vector2.prototype.divide = function (vectorOrX, y) {
+    if (typeof vectorOrX === "number") {
+      this.x /= vectorOrX;
+      this.y /= y === undefined ? vectorOrX : y;
+    } else {
+      this.x /= vectorOrX.x;
+      this.y /= vectorOrX.y;
+    }
+
     return this;
   };
 
@@ -19806,6 +19843,16 @@ function () {
     this.x = 0;
     this.y = 0;
     return this;
+  };
+
+  Vector2.prototype.reflect = function (normal) {
+    var _normal = new Vector2(normal).clone().normalize();
+
+    return this.subtract(_normal.scale(2 * this.dot(normal)));
+  };
+
+  Vector2.prototype.mirror = function (axis) {
+    return this.reflect(axis).negate();
   };
 
   return Vector2;
@@ -20041,30 +20088,181 @@ function () {
 }();
 
 exports.Engine = Engine;
-},{"./keyboard/keyboard":"engine/keyboard/keyboard.ts","./gameobjects/gameobjects":"engine/gameobjects/gameobjects.ts","./gameobjects/gameobject-factory":"engine/gameobjects/gameobject-factory.ts","./maps/map":"engine/maps/map.ts","./camera/camera":"engine/camera/camera.ts"}],"engine/gameobjects/gameobject.ts":[function(require,module,exports) {
+},{"./keyboard/keyboard":"engine/keyboard/keyboard.ts","./gameobjects/gameobjects":"engine/gameobjects/gameobjects.ts","./gameobjects/gameobject-factory":"engine/gameobjects/gameobject-factory.ts","./maps/map":"engine/maps/map.ts","./camera/camera":"engine/camera/camera.ts"}],"engine/physical/collision.ts":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.GameObject = exports.OBJECTS = void 0;
+exports.Collision = void 0;
 
-var vector2_1 = require("./../math/vector2");
+var vector2_1 = require("../math/vector2");
 
-var OBJECTS;
+var Collision =
+/** @class */
+function () {
+  function Collision(coord, velocity) {
+    this.mass = 1;
+    this.restitution = 0.2;
+    this.isColliding = false;
+    this.immobile = false;
+    this.coord = new vector2_1.Vector2(coord);
+    this.velocity = new vector2_1.Vector2(velocity);
+  }
 
-(function (OBJECTS) {
-  OBJECTS[OBJECTS["RECTANGLE"] = 0] = "RECTANGLE";
-})(OBJECTS = exports.OBJECTS || (exports.OBJECTS = {}));
+  Collision.prototype.collision = function (object) {
+    this.isColliding = true;
+    var velocity = new vector2_1.Vector2({
+      x: object.coord.x - this.coord.x,
+      y: object.coord.y - this.coord.y
+    });
+    var distance = this.coord.distance(object.coord);
+    var vNormalized = velocity.divide(distance);
+    var vRelative = this.velocity.clone().subtract(object.velocity);
+    var speed = vRelative.dot(vNormalized); // speed *= Math.min(this.restitution, object.restitution);
+
+    if (speed > 0) {
+      var impulse = 2 * speed / (this.mass + object.mass);
+
+      if (!this.immobile) {
+        this.velocity.subtractX(impulse * object.mass * vNormalized.x);
+        this.velocity.subtractY(impulse * object.mass * vNormalized.y);
+      }
+
+      if (!object.immobile) {
+        object.velocity.subtractX(impulse * this.mass * vNormalized.x);
+        object.velocity.subtractY(impulse * this.mass * vNormalized.y);
+      }
+    }
+  };
+
+  Collision.prototype.detectCollisions = function (gameObject) {};
+
+  Collision.prototype.detectEdgeCollisions = function (map) {};
+
+  return Collision;
+}();
+
+exports.Collision = Collision;
+},{"../math/vector2":"engine/math/vector2.ts"}],"engine/physical/physical.ts":[function(require,module,exports) {
+"use strict";
+
+var __extends = this && this.__extends || function () {
+  var _extendStatics = function extendStatics(d, b) {
+    _extendStatics = Object.setPrototypeOf || {
+      __proto__: []
+    } instanceof Array && function (d, b) {
+      d.__proto__ = b;
+    } || function (d, b) {
+      for (var p in b) {
+        if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p];
+      }
+    };
+
+    return _extendStatics(d, b);
+  };
+
+  return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+
+    _extendStatics(d, b);
+
+    function __() {
+      this.constructor = d;
+    }
+
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+  };
+}();
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.Physical = void 0;
+
+var collision_1 = require("./collision");
+
+var Physical =
+/** @class */
+function (_super) {
+  __extends(Physical, _super);
+
+  function Physical(coord, velocity) {
+    var _this = _super.call(this, coord, velocity) || this;
+
+    _this.gravity = false;
+    return _this;
+  }
+
+  Physical.prototype.update = function (fps, context) {
+    if (!this.immobile) {
+      if (this.gravity) {
+        this.velocity.addY(9.81 * fps);
+      }
+
+      this.coord.addX(this.velocity.x * fps);
+      this.coord.addY(this.velocity.y * fps);
+    }
+  };
+
+  return Physical;
+}(collision_1.Collision);
+
+exports.Physical = Physical;
+},{"./collision":"engine/physical/collision.ts"}],"engine/gameobjects/gameobject.ts":[function(require,module,exports) {
+"use strict";
+
+var __extends = this && this.__extends || function () {
+  var _extendStatics = function extendStatics(d, b) {
+    _extendStatics = Object.setPrototypeOf || {
+      __proto__: []
+    } instanceof Array && function (d, b) {
+      d.__proto__ = b;
+    } || function (d, b) {
+      for (var p in b) {
+        if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p];
+      }
+    };
+
+    return _extendStatics(d, b);
+  };
+
+  return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+
+    _extendStatics(d, b);
+
+    function __() {
+      this.constructor = d;
+    }
+
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+  };
+}();
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.GameObject = exports.SHAPES = void 0;
+
+var physical_1 = require("../physical/physical");
+
+var SHAPES;
+
+(function (SHAPES) {
+  SHAPES[SHAPES["RECTANGLE"] = 0] = "RECTANGLE";
+})(SHAPES = exports.SHAPES || (exports.SHAPES = {}));
 
 var GameObject =
 /** @class */
-function () {
+function (_super) {
+  __extends(GameObject, _super);
+
   function GameObject(coord, velocity) {
-    this.isColliding = false;
-    this.speed = 1.2;
-    this.coord = new vector2_1.Vector2(coord);
-    this.velocity = new vector2_1.Vector2(velocity);
+    var _this = _super.call(this, coord, velocity) || this;
+
+    _this.speed = 1.2;
+    return _this;
   }
 
   GameObject.prototype.init = function () {};
@@ -20072,56 +20270,143 @@ function () {
   GameObject.prototype.destroy = function () {};
 
   GameObject.prototype.update = function (fps, context) {
+    _super.prototype.update.call(this, fps, context);
+
     this.coord.addX(this.velocity.x * fps);
     this.coord.addY(this.velocity.y * fps);
-  };
-
-  GameObject.prototype.physical = function (fps) {
-    this.velocity.addY(9.81 * fps);
-    this.coord.addX(this.velocity.x * fps);
-    this.coord.addY(this.velocity.y * fps);
-  };
-
-  GameObject.prototype.moveTo = function (coord) {
-    if (coord.x < 0) coord.x = 0;
-    if (coord.y < 0) coord.y = 0;
-    if (coord.x > this.engine.maps.width) coord.x = this.engine.maps.width;
-    if (coord.y > this.engine.maps.height) coord.y = this.engine.maps.height;
-    this.coord.setFromObject(coord);
   };
 
   return GameObject;
-}();
+}(physical_1.Physical);
 
 exports.GameObject = GameObject;
-},{"./../math/vector2":"engine/math/vector2.ts"}],"engine/collision/collision.ts":[function(require,module,exports) {
+},{"../physical/physical":"engine/physical/physical.ts"}],"engine/gameobjects/rectangle.ts":[function(require,module,exports) {
 "use strict";
+
+var __extends = this && this.__extends || function () {
+  var _extendStatics = function extendStatics(d, b) {
+    _extendStatics = Object.setPrototypeOf || {
+      __proto__: []
+    } instanceof Array && function (d, b) {
+      d.__proto__ = b;
+    } || function (d, b) {
+      for (var p in b) {
+        if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p];
+      }
+    };
+
+    return _extendStatics(d, b);
+  };
+
+  return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+
+    _extendStatics(d, b);
+
+    function __() {
+      this.constructor = d;
+    }
+
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+  };
+}();
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.collision = void 0;
+exports.Rectangle = void 0;
 
-var gameobject_1 = require("../gameobjects/gameobject");
+var vector2_1 = require("../math/vector2");
 
-var collision = function collision(object) {
-  function rectangleWithRectangle(object, object2) {
-    return !(object.coord.y > object2.height + object2.coord.y || object.width + object.coord.x < object2.coord.x || object.height + object.coord.y < object2.coord.y || object.coord.x > object2.width + object2.coord.x);
+var gameobject_1 = require("./gameobject");
+
+var Rectangle =
+/** @class */
+function (_super) {
+  __extends(Rectangle, _super);
+
+  function Rectangle(coord, width, height, fillColor, strokeColor) {
+    if (fillColor === void 0) {
+      fillColor = "#fff";
+    }
+
+    if (strokeColor === void 0) {
+      strokeColor = null;
+    }
+
+    var _this = _super.call(this, coord, new vector2_1.Vector2({
+      x: 0,
+      y: 0
+    })) || this;
+
+    _this.width = width;
+    _this.height = height;
+    _this.fillColor = fillColor;
+    _this.strokeColor = strokeColor;
+    _this.type = gameobject_1.SHAPES.RECTANGLE;
+    return _this;
   }
 
-  return {
-    with: function _with(object2) {
-      if (object.type === gameobject_1.OBJECTS.RECTANGLE) {
-        if (object2.type === gameobject_1.OBJECTS.RECTANGLE) {
-          return rectangleWithRectangle(object, object2);
-        }
-      }
+  Rectangle.prototype.draw = function (context) {
+    if (this.fillColor) {
+      context.fillStyle = this.isColliding ? "red" : this.fillColor;
+      context.fillRect(this.coord.x, this.coord.y, this.width, this.height);
+    }
+
+    if (this.strokeColor) {
+      context.strokeStyle = this.isColliding ? "red" : this.strokeColor;
+      context.strokeRect(this.coord.x, this.coord.y, this.width, this.height);
     }
   };
-};
 
-exports.collision = collision;
-},{"../gameobjects/gameobject":"engine/gameobjects/gameobject.ts"}],"player/player.ts":[function(require,module,exports) {
+  Rectangle.prototype.collision = function (object) {
+    // TOP - BOTTOM
+    if (this.coord.y < object.height + object.coord.y) {} // LEFT - RIGHT
+
+
+    if (this.width + this.coord.x > object.coord.x) {} // BOTTOM - TOP
+
+
+    if (this.height + this.coord.y <= object.coord.y) {
+      this.velocity.setY(0);
+    } // RIGHT - LEFT
+
+
+    if (this.coord.x < object.width + object.coord.x) {}
+  };
+
+  Rectangle.prototype.detectCollisions = function (object) {
+    switch (object.type) {
+      case gameobject_1.SHAPES.RECTANGLE:
+        this.isColliding = !(this.coord.y > object.height + object.coord.y || this.width + this.coord.x < object.coord.x || this.height + this.coord.y < object.coord.y || this.coord.x > object.width + object.coord.x);
+        object.isColliding = this.isColliding;
+        break;
+    }
+  };
+
+  Rectangle.prototype.detectEdgeCollisions = function (map) {
+    if (this.coord.x < 0) {
+      this.velocity.setX(Math.abs(this.velocity.x) * 0);
+      this.coord.setX(0);
+    } else if (this.coord.x + this.width > map.width) {
+      this.velocity.setX(-Math.abs(this.velocity.x) * 0);
+      this.coord.setX(map.width - this.width);
+    }
+
+    if (this.coord.y < 0) {
+      this.velocity.setY(Math.abs(this.velocity.y) * 0);
+      this.coord.setY(0);
+    } else if (this.coord.y + this.height > map.height) {
+      this.velocity.setY(-Math.abs(this.velocity.y) * 0);
+      this.coord.setY(map.height - this.height);
+    }
+  };
+
+  return Rectangle;
+}(gameobject_1.GameObject);
+
+exports.Rectangle = Rectangle;
+},{"../math/vector2":"engine/math/vector2.ts","./gameobject":"engine/gameobjects/gameobject.ts"}],"player/player.ts":[function(require,module,exports) {
 "use strict";
 
 var __extends = this && this.__extends || function () {
@@ -20157,11 +20442,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.Player = void 0;
 
-var collision_1 = require("../engine/collision/collision");
-
-var gameobject_1 = require("../engine/gameobjects/gameobject");
-
 var vector2_1 = require("../engine/math/vector2");
+
+var rectangle_1 = require("./../engine/gameobjects/rectangle");
 
 var Player =
 /** @class */
@@ -20169,72 +20452,64 @@ function (_super) {
   __extends(Player, _super);
 
   function Player(coord) {
-    var _this = _super.call(this, coord, new vector2_1.Vector2({
-      x: 0,
-      y: 0
-    })) || this;
+    var _this = _super.call(this, coord, 20, 20) || this;
 
-    _this.type = gameobject_1.OBJECTS.RECTANGLE;
     _this.speed = 1.1;
-    _this.width = 20;
-    _this.height = 20;
+    _this.gravity = false;
     return _this;
   }
 
   Player.prototype.draw = function (context) {
-    context.fillStyle = "red";
-    context.fillRect(this.coord.x, this.coord.y, this.width, this.height);
+    _super.prototype.draw.call(this, context);
+
+    var center = new vector2_1.Vector2({
+      x: this.width / 2,
+      y: this.height / 2
+    });
+    context.beginPath();
+    context.strokeStyle = "#fff";
+    context.moveTo(this.coord.x + center.x, this.coord.y + center.y);
+    context.lineTo(this.coord.x + this.velocity.x + center.x, this.coord.y + this.velocity.y + center.y);
+    context.stroke();
+    context.fillStyle = "#fff";
+    context.moveTo(this.coord.x + this.velocity.x + center.x, this.coord.y + this.velocity.y + center.y);
+    context.arc(this.coord.x + this.velocity.x + center.x, this.coord.y + this.velocity.y + center.y, 4, 0, 2 * Math.PI);
+    context.fill();
   };
 
   Player.prototype.update = function (fps, context) {
-    if (this.engine.keyboard.press("arrow_up")) {
+    _super.prototype.update.call(this, fps, context);
+
+    if (this.engine.keyboard.press("w")) {
       this.velocity.addY(-this.speed);
     }
 
-    if (this.engine.keyboard.press("arrow_right")) {
+    if (this.engine.keyboard.press("d")) {
       this.velocity.addX(this.speed);
     }
 
-    if (this.engine.keyboard.press("arrow_down")) {
+    if (this.engine.keyboard.press("s")) {
       this.velocity.addY(this.speed);
     }
 
-    if (this.engine.keyboard.press("arrow_left")) {
+    if (this.engine.keyboard.press("a")) {
       this.velocity.addX(-this.speed);
     }
-
-    _super.prototype.update.call(this, fps, context);
-
-    _super.prototype.physical.call(this, fps);
   };
 
-  Player.prototype.collision = function (gameObject) {
-    this.isColliding = (0, collision_1.collision)(this).with(gameObject);
-  };
+  Player.prototype.detectCollisions = function (object) {
+    _super.prototype.detectCollisions.call(this, object);
 
-  Player.prototype.detectEdgeCollisions = function (map) {
-    if (this.coord.x < 0) {
-      this.velocity.setX(Math.abs(this.velocity.x) * 0.9);
-      this.coord.setX(0);
-    } else if (this.coord.x + this.width > map.width) {
-      this.velocity.setX(-Math.abs(this.velocity.x) * 0.9);
-      this.coord.setX(map.width - this.width);
-    }
-
-    if (this.coord.y < 0) {
-      this.velocity.setY(Math.abs(this.velocity.y) * 0.9);
-      this.coord.setY(0);
-    } else if (this.coord.y + this.height > map.height) {
-      this.velocity.setY(-Math.abs(this.velocity.y) * 0.9);
-      this.coord.setY(map.height - this.height);
+    if (this.isColliding) {
+      this.collision(object);
     }
   };
 
   return Player;
-}(gameobject_1.GameObject);
+}(rectangle_1.Rectangle);
 
 exports.Player = Player;
-},{"../engine/collision/collision":"engine/collision/collision.ts","../engine/gameobjects/gameobject":"engine/gameobjects/gameobject.ts","../engine/math/vector2":"engine/math/vector2.ts"}],"game.ts":[function(require,module,exports) {
+},{"../engine/math/vector2":"engine/math/vector2.ts","./../engine/gameobjects/rectangle":"engine/gameobjects/rectangle.ts"}],"game.ts":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -20245,6 +20520,8 @@ var engine_1 = require("./engine/engine");
 
 var player_1 = require("./player/player");
 
+var rectangle_1 = require("./engine/gameobjects/rectangle");
+
 window.onload = function () {
   var container = document.querySelector("#game");
   var engine = new engine_1.Engine(container.clientWidth, container.clientHeight);
@@ -20253,19 +20530,18 @@ window.onload = function () {
     x: 20,
     y: 20
   });
+  var base = engine.factory.create(rectangle_1.Rectangle, {
+    x: 30,
+    y: 100
+  }, engine.canvas.width - 100, 20);
+  player.velocity.setY(10);
+  base.immobile = true;
   engine.objects.add(player);
-  engine.camera.follower = player; // engine.objects.add(
-  //   engine.factory.create(
-  //     Rectangle,
-  //     { x: 50, y: engine.canvas.height - 50 },
-  //     engine.canvas.width - 100,
-  //     20
-  //   )
-  // );
-
+  engine.objects.add(base);
+  engine.camera.follower = player;
   engine.start();
 };
-},{"./engine/engine":"engine/engine.ts","./player/player":"player/player.ts"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./engine/engine":"engine/engine.ts","./player/player":"player/player.ts","./engine/gameobjects/rectangle":"engine/gameobjects/rectangle.ts"}],"../node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -20293,7 +20569,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55971" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50494" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
@@ -20470,4 +20746,4 @@ function hmrAcceptRun(bundle, id) {
   }
 }
 },{}]},{},["../node_modules/parcel-bundler/src/builtins/hmr-runtime.js","game.ts"], null)
-//# sourceMappingURL=game.4fb5d41c.js.map
+//# sourceMappingURL=/game.4fb5d41c.js.map

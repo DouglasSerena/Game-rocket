@@ -56,9 +56,17 @@ export class Vector2 {
     this.y += y || 0;
     return this;
   }
-  public add(x: number, y: number) {
-    this.x += x;
-    this.y += y;
+  public add(value: number): Vector2;
+  public add(vector: AnyVector): Vector2;
+  public add(x: number, y: number): Vector2;
+  public add(vectorOrX: AnyVector | number, y: number = null) {
+    if (typeof vectorOrX === "number") {
+      this.x += vectorOrX;
+      this.y += y !== null ? y : vectorOrX;
+    } else {
+      this.x += vectorOrX.x;
+      this.y += vectorOrX.y;
+    }
     return this;
   }
 
@@ -70,9 +78,17 @@ export class Vector2 {
     this.y -= y || 0;
     return this;
   }
-  public subtract(x: number, y: number) {
-    this.x -= x;
-    this.y -= y;
+  public subtract(value: number): Vector2;
+  public subtract(vector: AnyVector): Vector2;
+  public subtract(x: number, y: number): Vector2;
+  public subtract(vectorOrX: AnyVector | number, y: number = null) {
+    if (typeof vectorOrX === "number") {
+      this.x -= vectorOrX;
+      this.y -= y !== null ? y : vectorOrX;
+    } else {
+      this.x -= vectorOrX.x;
+      this.y -= vectorOrX.y;
+    }
     return this;
   }
 
@@ -84,9 +100,17 @@ export class Vector2 {
     this.y *= y || 0;
     return this;
   }
-  public multiply(x: number, y: number) {
-    this.x *= x;
-    this.y *= y;
+  public multiply(value: number): Vector2;
+  public multiply(vector: AnyVector): Vector2;
+  public multiply(x: number, y: number): Vector2;
+  public multiply(vectorOrX: AnyVector | number, y: number = null) {
+    if (typeof vectorOrX === "number") {
+      this.x *= vectorOrX;
+      this.y *= y !== null ? y : vectorOrX;
+    } else {
+      this.x *= vectorOrX.x;
+      this.y *= vectorOrX.y;
+    }
     return this;
   }
 
@@ -98,9 +122,17 @@ export class Vector2 {
     this.y /= y || 0;
     return this;
   }
-  public divide(x: number, y: number) {
-    this.x /= x;
-    this.y /= y;
+  public divide(value: number): Vector2;
+  public divide(vector: AnyVector): Vector2;
+  public divide(x: number, y: number): Vector2;
+  public divide(vectorOrX: AnyVector | number, y?: number) {
+    if (typeof vectorOrX === "number") {
+      this.x /= vectorOrX;
+      this.y /= y === undefined ? vectorOrX : y;
+    } else {
+      this.x /= vectorOrX.x;
+      this.y /= vectorOrX.y;
+    }
     return this;
   }
 
@@ -176,5 +208,15 @@ export class Vector2 {
     this.y = 0;
 
     return this;
+  }
+
+  public reflect(normal: AnyVector) {
+    const _normal = new Vector2(normal).clone().normalize();
+
+    return this.subtract(_normal.scale(2 * this.dot(normal)));
+  }
+
+  public mirror(axis: AnyVector) {
+    return this.reflect(axis).negate();
   }
 }

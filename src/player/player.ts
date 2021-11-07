@@ -1,60 +1,65 @@
-import { collision } from "../engine/collision/collision";
-import { GameObject, OBJECTS } from "../engine/gameobjects/gameobject";
 import { Maps } from "../engine/maps/map";
 import { AnyVector, Vector2 } from "../engine/math/vector2";
+import { GameObject } from "../engine/gameobjects/gameobject";
+import { Rectangle } from "./../engine/gameobjects/rectangle";
 
-export class Player extends GameObject {
-  public type: OBJECTS = OBJECTS.RECTANGLE;
-
+export class Player extends Rectangle {
   public speed = 1.1;
-  public width = 20;
-  public height = 20;
 
-  constructor(coord: AnyVector) {
-    super(coord, new Vector2({ x: 0, y: 0 }));
+  constructor(coord: Required<AnyVector>) {
+    super(coord, 20, 20);
+    this.gravity = false;
   }
 
   public draw(context: CanvasRenderingContext2D) {
-    context.fillStyle = "red";
-    context.fillRect(this.coord.x, this.coord.y, this.width, this.height);
+    super.draw(context);
+
+    const center = new Vector2({ x: this.width / 2, y: this.height / 2 });
+
+    context.beginPath();
+    context.strokeStyle = "#fff";
+    context.moveTo(this.coord.x + center.x, this.coord.y + center.y);
+    context.lineTo(
+      this.coord.x + this.velocity.x + center.x,
+      this.coord.y + this.velocity.y + center.y
+    );
+    context.stroke();
+
+    context.fillStyle = "#fff";
+    context.moveTo(
+      this.coord.x + this.velocity.x + center.x,
+      this.coord.y + this.velocity.y + center.y
+    );
+    context.arc(
+      this.coord.x + this.velocity.x + center.x,
+      this.coord.y + this.velocity.y + center.y,
+      4,
+      0,
+      2 * Math.PI
+    );
+    context.fill();
   }
 
   public update(fps: number, context: CanvasRenderingContext2D) {
-    if (this.engine.keyboard.press("arrow_up")) {
+    super.update(fps, context);
+    if (this.engine.keyboard.press("w")) {
       this.velocity.addY(-this.speed);
     }
-    if (this.engine.keyboard.press("arrow_right")) {
+    if (this.engine.keyboard.press("d")) {
       this.velocity.addX(this.speed);
     }
-    if (this.engine.keyboard.press("arrow_down")) {
+    if (this.engine.keyboard.press("s")) {
       this.velocity.addY(this.speed);
     }
-    if (this.engine.keyboard.press("arrow_left")) {
+    if (this.engine.keyboard.press("a")) {
       this.velocity.addX(-this.speed);
     }
-    super.update(fps, context);
-    super.physical(fps);
   }
 
-  public collision(gameObject: GameObject) {
-    this.isColliding = collision(this).with(gameObject);
-  }
-
-  public detectEdgeCollisions(map: Maps) {
-    if (this.coord.x < 0) {
-      this.velocity.setX(Math.abs(this.velocity.x) * 0.9);
-      this.coord.setX(0);
-    } else if (this.coord.x + this.width > map.width) {
-      this.velocity.setX(-Math.abs(this.velocity.x) * 0.9);
-      this.coord.setX(map.width - this.width);
-    }
-
-    if (this.coord.y < 0) {
-      this.velocity.setY(Math.abs(this.velocity.y) * 0.9);
-      this.coord.setY(0);
-    } else if (this.coord.y + this.height > map.height) {
-      this.velocity.setY(-Math.abs(this.velocity.y) * 0.9);
-      this.coord.setY(map.height - this.height);
+  public detectCollisions(object: GameObject) {
+    super.detectCollisions(object);
+    if (this.isColliding) {
+      this.collision(object);
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "parcel src/index.html -d docs --public-url ./",
+    "start": "parcel src/index.html -d docs",
     "build": "parcel src/index.html -d docs --public-url ./"
   },
   "devDependencies": {

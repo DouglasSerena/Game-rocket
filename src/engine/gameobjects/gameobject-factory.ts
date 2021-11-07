@@ -4,7 +4,7 @@ import { GetConstructorArgs } from "./../types/get-constructor-args";
 
 export class GameObjectFactory {
   constructor(public engine: Engine) {}
-  create<T = GameObject>(object: T, ...params: GetConstructorArgs<T>) {
+  create<T = GameObject>(object: T, ...params: GetConstructorArgs<T>): T['prototype'] {
     const instance = new (object as any)(...params);
     instance.engine = this.engine;
     instance.init();

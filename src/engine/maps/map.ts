@@ -1,11 +1,11 @@
 import { Engine } from "../engine";
-import { Vector2 } from "../math/vector2";
 
 export class Maps {
   public image = null;
 
   private _width: number = 0;
   private _height: number = 0;
+  public restitution = 0.1;
 
   public get width() {
     return this._width;
